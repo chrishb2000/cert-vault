@@ -21,6 +21,11 @@ contextBridge.exposeInMainWorld('certAPI', {
   // Get installed certs from Windows
   getInstalledCerts: (storeName) => ipcRenderer.invoke('cert:getInstalled', storeName),
 
+  // Auto-detect
+  autoDetectCerts: () => ipcRenderer.invoke('cert:autoDetect'),
+  scanFolder: (folderPath) => ipcRenderer.invoke('cert:scanFolder', folderPath),
+  importMultiple: (certs) => ipcRenderer.invoke('cert:importMultiple', certs),
+
   // System info
   getSystemInfo: () => ipcRenderer.invoke('system:info')
 });

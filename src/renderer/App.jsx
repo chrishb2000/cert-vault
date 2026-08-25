@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
+import AutoDetect from './components/AutoDetect';
 import ImportCert from './components/ImportCert';
 import ExportCert from './components/ExportCert';
 import CertDetail from './components/CertDetail';
@@ -32,6 +33,8 @@ export default function App() {
 
   const renderPage = () => {
     switch (page) {
+      case 'autodetect':
+        return <AutoDetect onImported={loadCerts} />;
       case 'import':
         return <ImportCert onImported={loadCerts} onNavigate={navigateTo} />;
       case 'export':

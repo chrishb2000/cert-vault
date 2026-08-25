@@ -2,7 +2,7 @@ const path = require('path');
 const fs = require('fs');
 const os = require('os');
 const { getAllCerts, getCertById, addCert, deleteCert, updateCertLabel } = require('./db');
-const { parseCertFile, importPfxToStore, getInstalledCertsFromStore } = require('./cert-utils');
+const { parseCertFile, importPfxToStore, getInstalledCertsFromStore, fullAutoDetect, scanFolderForCerts } = require('./cert-utils');
 
 function registerHandlers(ipcMain, dialog, mainWindow) {
 
@@ -112,6 +112,51 @@ function registerHandlers(ipcMain, dialog, mainWindow) {
 
   ipcMain.handle('cert:getInstalled', async (event, storeName) => {
     return getInstalledCertsFromStore(storeName);
+  });
+
+  ipcMain.handle('cert:autoDetect', async (event) => {
+    return fullAutoDetect();
+  });
+
+  ipcMain.handle('cert:scanFolder', async (event, folderPath) => {
+    if (!fs.existsSync(folderPath)) {
+      return { success: false, message: 'La carpeta no existe', certs: [] };
+    }
+    const certs = scanFolderForCerts(folderPath, 3);
+    return { success: true, certs, message: `Se encontraron ${certs.length} certificados en ${folderPath}` };
+  });
+
+  ipcMain.handle('cert:importMultiple', async (event, certsToImport) => {
+    const results = [];
+    for (const c of certsToImport) {
+      try {
+        const cert = addCert({
+          label: c.subject || c.file_name,
+          file_name: c.file_name,
+          file_path: c.file_path,
+          file_type: c.fileType,
+          subject: c.subject,
+          issuer: c.issuer,
+          serial_number: c.serialNumber,
+          thumbprint: c.thumbprint,
+          valid_from: c.validFrom,
+          valid_to: c.validTo,
+          has_private_key: c.hasPrivateKey ? 1 : 0,
+          key_usage: c.keyUsage,
+          store_location: c.source || ''
+        });
+        results.push({ success: true, id: cert.id, subject: c.subject || c.file_name });
+      } catch (err) {
+        results.push({ success: false, subject: c.subject || c.file_name, error: err.message });
+      }
+    }
+    const imported = results.filter(r => r.success).length;
+    const failed = results.filter(r => !r.success).length;
+    return {
+      success: imported > 0,
+      message: `Importados: ${imported}, Fallidos: ${failed}`,
+      results
+    };
   });
 
   ipcMain.handle('system:info', async () => {

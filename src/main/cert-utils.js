@@ -144,9 +144,133 @@ function parseCertutilOutput(output) {
   return certs;
 }
 
+function scanWindowsStores() {
+  const stores = ['My', 'Root', 'CA', 'TrustedPublisher'];
+  const results = [];
+
+  for (const store of stores) {
+    try {
+      const cmd = `certutil -store "${store}"`;
+      const output = execSync(cmd, { encoding: 'utf8', timeout: 15000 });
+      const certs = parseCertutilOutput(output);
+      for (const cert of certs) {
+        cert.store = store;
+        cert.source = `Almacen Windows: ${store}`;
+      }
+      results.push(...certs);
+    } catch (err) {
+      // Store may be empty or inaccessible
+    }
+  }
+
+  return results;
+}
+
+function scanFolderForCerts(folderPath, maxDepth) {
+  const found = [];
+  const certExts = ['.pfx', '.p12', '.cer', '.crt', '.pem'];
+
+  function walk(dir, depth) {
+    if (depth > maxDepth) return;
+    try {
+      const entries = fs.readdirSync(dir, { withFileTypes: true });
+      for (const entry of entries) {
+        const fullPath = path.join(dir, entry.name);
+        if (entry.isDirectory() && !entry.name.startsWith('.') && entry.name !== 'node_modules' && entry.name !== 'AppData') {
+          walk(fullPath, depth + 1);
+        } else if (entry.isFile()) {
+          const ext = path.extname(entry.name).toLowerCase();
+          if (certExts.includes(ext)) {
+            try {
+              const parsed = parseCertFile(fullPath, '');
+              found.push({
+                ...parsed,
+                file_path: fullPath,
+                file_name: entry.name,
+                source: `Archivo: ${fullPath}`
+              });
+            } catch (e) {
+              // Skip unparseable files
+            }
+          }
+        }
+      }
+    } catch (e) {
+      // Skip inaccessible directories
+    }
+  }
+
+  walk(folderPath, 0);
+  return found;
+}
+
+function scanCommonPaths() {
+  const home = os.homedir();
+  const paths = [
+    path.join(home, 'Desktop'),
+    path.join(home, 'Downloads'),
+    path.join(home, 'Documents'),
+    path.join(home, 'OneDrive', 'Desktop'),
+    path.join(home, 'OneDrive', 'Downloads'),
+    path.join(home, 'OneDrive', 'Documents')
+  ];
+
+  const results = [];
+  for (const p of paths) {
+    if (fs.existsSync(p)) {
+      const certs = scanFolderForCerts(p, 2);
+      results.push(...certs);
+    }
+  }
+  return results;
+}
+
+function scanRemovableDrives() {
+  const results = [];
+  try {
+    const output = execSync('wmic logicaldisk where "DriveType=2" get DeviceID,VolumeName', { encoding: 'utf8', timeout: 5000 });
+    const lines = output.split('\n').filter(l => l.trim() && !l.includes('DeviceID'));
+    for (const line of lines) {
+      const match = line.match(/([A-Z]:)/);
+      if (match) {
+        const drivePath = match[1] + '\\';
+        const certs = scanFolderForCerts(drivePath, 2);
+        results.push(...certs);
+      }
+    }
+  } catch (e) {
+    // WMI may not be available
+  }
+  return results;
+}
+
+function fullAutoDetect(progressCallback) {
+  const allResults = [];
+
+  if (progressCallback) progressCallback('Escaneando almacenes de Windows...');
+  const storeCerts = scanWindowsStores();
+  allResults.push(...storeCerts.map(c => ({ ...c, category: 'store' })));
+
+  if (progressCallback) progressCallback('Escaneando carpetas comunes...');
+  const folderCerts = scanCommonPaths();
+  allResults.push(...folderCerts.map(c => ({ ...c, category: 'file' })));
+
+  if (progressCallback) progressCallback('Escaneando unidades extraibles...');
+  const usbCerts = scanRemovableDrives();
+  allResults.push(...usbCerts.map(c => ({ ...c, category: 'removable' })));
+
+  if (progressCallback) progressCallback('Escaneo completo');
+  return allResults;
+}
+
 module.exports = {
   parseCertFile,
   importPfxToStore,
   exportPfxWithCertutil,
-  getInstalledCertsFromStore
+  getInstalledCertsFromStore,
+  scanWindowsStores,
+  scanFolderForCerts,
+  scanCommonPaths,
+  scanRemovableDrives,
+  fullAutoDetect
 };

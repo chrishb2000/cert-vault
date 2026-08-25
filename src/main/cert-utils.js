@@ -93,7 +93,7 @@ function parseCertFile(filePath, password) {
       result.keyUsage = ku ? ku.name : '';
     }
   } catch (err) {
-    console.error('Error parsing certificate file:', filePath, err.message);
+    // Silent - PFX with password or unreadable cert, handled by caller
   }
 
   return result;

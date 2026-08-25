@@ -19,6 +19,11 @@ export default function App() {
 
   useEffect(() => {
     document.body.setAttribute('data-theme', theme);
+    document.documentElement.setAttribute('data-theme', theme);
+    const bgColor = theme === 'dark' ? '#0f172a' : '#f8fafc';
+    if (window.certAPI && window.certAPI.setBackgroundColor) {
+      window.certAPI.setBackgroundColor(bgColor);
+    }
   }, [theme]);
 
   const loadCerts = async () => {

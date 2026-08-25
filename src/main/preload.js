@@ -26,6 +26,9 @@ contextBridge.exposeInMainWorld('certAPI', {
   scanFolder: (folderPath) => ipcRenderer.invoke('cert:scanFolder', folderPath),
   importMultiple: (certs) => ipcRenderer.invoke('cert:importMultiple', certs),
 
+  // Window
+  setBackgroundColor: (color) => ipcRenderer.invoke('window:setBackgroundColor', color),
+
   // System info
   getSystemInfo: () => ipcRenderer.invoke('system:info')
 });

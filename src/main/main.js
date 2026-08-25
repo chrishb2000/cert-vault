@@ -1,6 +1,6 @@
 const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
-const { initDB, getDB } = require('./db');
+const { initDB } = require('./db');
 const { registerHandlers } = require('./ipc-handlers');
 
 let mainWindow;
@@ -12,6 +12,7 @@ function createWindow() {
     minWidth: 1000,
     minHeight: 700,
     autoHideMenuBar: true,
+    setMenuBarVisibility: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -29,6 +30,12 @@ function createWindow() {
   } else {
     mainWindow.loadFile(path.join(__dirname, '..', 'renderer', 'dist', 'index.html'));
   }
+
+  ipcMain.handle('window:setBackgroundColor', (event, color) => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.setBackgroundColor(color);
+    }
+  });
 }
 
 app.whenReady().then(() => {

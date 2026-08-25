@@ -262,7 +262,6 @@ function fullAutoDetect() {
 
 module.exports = {
   parseCertFile,
-  importPfxToStore,
   exportPfxWithCertutil: function(certFilePath, destPath, password) {
     try {
       const pwFlag = password ? `-p "${password}"` : '-p ""';

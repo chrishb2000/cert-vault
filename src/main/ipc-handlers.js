@@ -118,6 +118,15 @@ function registerHandlers(ipcMain, dialog, mainWindow) {
     return fullAutoDetect();
   });
 
+  ipcMain.handle('dialog:openFolder', async () => {
+    const result = await dialog.showOpenDialog(mainWindow, {
+      title: 'Seleccionar Carpeta',
+      properties: ['openDirectory']
+    });
+    if (result.canceled) return null;
+    return result.filePaths[0];
+  });
+
   ipcMain.handle('cert:scanFolder', async (event, folderPath) => {
     if (!fs.existsSync(folderPath)) {
       return { success: false, message: 'La carpeta no existe', certs: [] };

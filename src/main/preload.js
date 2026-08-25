@@ -25,6 +25,7 @@ contextBridge.exposeInMainWorld('certAPI', {
   autoDetectCerts: () => ipcRenderer.invoke('cert:autoDetect'),
   scanFolder: (folderPath) => ipcRenderer.invoke('cert:scanFolder', folderPath),
   importMultiple: (certs) => ipcRenderer.invoke('cert:importMultiple', certs),
+  openFolderDialog: () => ipcRenderer.invoke('dialog:openFolder'),
 
   // Window
   setBackgroundColor: (color) => ipcRenderer.invoke('window:setBackgroundColor', color),

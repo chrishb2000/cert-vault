@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 
 export default function AutoDetect({ onImported }) {
   const [scanning, setScanning] = useState(false);
-  const [scanType, setScanType] = useState(null);
   const [results, setResults] = useState([]);
   const [selected, setSelected] = useState(new Set());
   const [importing, setImporting] = useState(false);
@@ -12,16 +11,19 @@ export default function AutoDetect({ onImported }) {
 
   const startAutoDetect = async () => {
     setScanning(true);
-    setScanType('full');
     setResults([]);
     setSelected(new Set());
     setImportResult(null);
-    setProgressMsg('Iniciando escaneo completo...');
+    setProgressMsg('Escaneando almacenes de Windows y carpetas...');
 
     try {
       const res = await window.certAPI.autoDetectCerts();
       setResults(res);
-      setProgressMsg(`Escaneo completo: ${res.length} certificados encontrados`);
+      if (res.length === 0) {
+        setProgressMsg('Escaneo completo: no se encontraron certificados en las ubicaciones comunes');
+      } else {
+        setProgressMsg(`Escaneo completo: ${res.length} certificados encontrados`);
+      }
     } catch (err) {
       setProgressMsg(`Error: ${err.message}`);
     } finally {
@@ -29,10 +31,16 @@ export default function AutoDetect({ onImported }) {
     }
   };
 
+  const openFolderPicker = async () => {
+    const folder = await window.certAPI.openFolderDialog();
+    if (folder) {
+      setCustomFolder(folder);
+    }
+  };
+
   const startFolderScan = async () => {
     if (!customFolder) return;
     setScanning(true);
-    setScanType('folder');
     setResults([]);
     setSelected(new Set());
     setImportResult(null);
@@ -93,7 +101,11 @@ export default function AutoDetect({ onImported }) {
 
   const formatDate = (dateStr) => {
     if (!dateStr) return '-';
-    return new Date(dateStr).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' });
+    try {
+      return new Date(dateStr).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' });
+    } catch {
+      return dateStr;
+    }
   };
 
   const getCategoryLabel = (cat) => {
@@ -104,10 +116,6 @@ export default function AutoDetect({ onImported }) {
       default: return { text: 'Otro', color: 'cat-other' };
     }
   };
-
-  const storeCerts = results.filter(r => r.category === 'store');
-  const fileCerts = results.filter(r => r.category === 'file');
-  const usbCerts = results.filter(r => r.category === 'removable');
 
   return (
     <div className="page">
@@ -120,9 +128,9 @@ export default function AutoDetect({ onImported }) {
 
       <div className="autodetect-container">
         <div className="autodetect-actions">
-          <div className="action-card primary-action" onClick={!scanning ? startAutoDetect : undefined}>
-            <div className={`action-card-icon ${scanning && scanType === 'full' ? 'scanning' : ''}`}>
-              {scanning && scanType === 'full' ? (
+          <div className={`action-card primary-action ${scanning ? 'scanning-card' : ''}`} onClick={!scanning ? startAutoDetect : undefined}>
+            <div className={`action-card-icon ${scanning ? 'scanning' : ''}`}>
+              {scanning ? (
                 <span className="spinner-lg"></span>
               ) : (
                 <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" strokeWidth="2">
@@ -145,16 +153,14 @@ export default function AutoDetect({ onImported }) {
             <div className="folder-scan-input">
               <input
                 type="text"
-                placeholder="Ruta de la carpeta..."
+                placeholder="Haz clic en Examinar para elegir carpeta..."
                 value={customFolder}
-                onChange={e => setCustomFolder(e.target.value)}
-                disabled={scanning}
+                readOnly
               />
-              <button
-                className="scan-folder-btn"
-                onClick={startFolderScan}
-                disabled={scanning || !customFolder}
-              >
+              <button className="scan-folder-btn secondary-btn" onClick={openFolderPicker} disabled={scanning}>
+                Examinar
+              </button>
+              <button className="scan-folder-btn" onClick={startFolderScan} disabled={scanning || !customFolder}>
                 Escanear
               </button>
             </div>
@@ -172,17 +178,17 @@ export default function AutoDetect({ onImported }) {
           <>
             <div className="results-header">
               <div className="results-summary">
-                <span className="summary-item store-summary">
+                <span className="summary-item">
                   <span className="summary-dot dot-store"></span>
-                  Almacenes: {storeCerts.length}
+                  Almacenes: {results.filter(r => r.category === 'store').length}
                 </span>
-                <span className="summary-item file-summary">
+                <span className="summary-item">
                   <span className="summary-dot dot-file"></span>
-                  Archivos: {fileCerts.length}
+                  Archivos: {results.filter(r => r.category === 'file').length}
                 </span>
-                <span className="summary-item usb-summary">
+                <span className="summary-item">
                   <span className="summary-dot dot-usb"></span>
-                  USB: {usbCerts.length}
+                  USB: {results.filter(r => r.category === 'removable').length}
                 </span>
               </div>
 
@@ -244,7 +250,6 @@ export default function AutoDetect({ onImported }) {
                     <th>Emisor</th>
                     <th>Tipo</th>
                     <th>Valido Hasta</th>
-                    <th>Clave Privada</th>
                     <th>Fuente</th>
                   </tr>
                 </thead>
@@ -263,7 +268,7 @@ export default function AutoDetect({ onImported }) {
                           />
                         </td>
                         <td className="cert-name">
-                          <div className={`cert-icon cat-bg-${cert.category}`}>
+                          <div className={`cert-icon cat-bg-${cert.category || 'file'}`}>
                             <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
                               <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
                             </svg>
@@ -271,9 +276,8 @@ export default function AutoDetect({ onImported }) {
                           <span>{cert.subject || cert.file_name || 'Sin nombre'}</span>
                         </td>
                         <td className="issuer-cell">{cert.issuer || '-'}</td>
-                        <td><span className="type-badge">{cert.fileType || cert.file_type || '-'}</span></td>
-                        <td>{formatDate(cert.validTo || cert.valid_to)}</td>
-                        <td>{(cert.hasPrivateKey || cert.has_private_key) ? <span className="yes-badge">Si</span> : <span className="no-badge">No</span>}</td>
+                        <td><span className="type-badge">{cert.fileType || '-'}</span></td>
+                        <td>{formatDate(cert.validTo)}</td>
                         <td>
                           <span className={`category-badge ${cat.color}`}>{cat.text}</span>
                         </td>

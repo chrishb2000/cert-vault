@@ -30,18 +30,16 @@ function createWindow() {
   } else {
     mainWindow.loadFile(path.join(__dirname, '..', 'renderer', 'dist', 'index.html'));
   }
-
-  ipcMain.handle('window:setBackgroundColor', (event, color) => {
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.setBackgroundColor(color);
-    }
-  });
 }
 
 app.whenReady().then(() => {
-  initDB();
-  registerHandlers(ipcMain, dialog, mainWindow);
-  createWindow();
+  try {
+    initDB();
+    createWindow();
+    registerHandlers(ipcMain, dialog, mainWindow);
+  } catch (err) {
+    console.error('Error during startup:', err);
+  }
 });
 
 app.on('window-all-closed', () => {
@@ -51,5 +49,6 @@ app.on('window-all-closed', () => {
 app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) {
     createWindow();
+    registerHandlers(ipcMain, dialog, mainWindow);
   }
 });

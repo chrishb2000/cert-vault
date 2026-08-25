@@ -4,7 +4,17 @@ const os = require('os');
 const { getAllCerts, getCertById, addCert, deleteCert, updateCertLabel } = require('./db');
 const { parseCertFile, importPfxToStore, getInstalledCertsFromStore, fullAutoDetect, scanFolderForCerts } = require('./cert-utils');
 
+let registered = false;
+
 function registerHandlers(ipcMain, dialog, mainWindow) {
+  if (registered) return;
+  registered = true;
+
+  ipcMain.handle('window:setBackgroundColor', (event, color) => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.setBackgroundColor(color);
+    }
+  });
 
   ipcMain.handle('dialog:openImport', async () => {
     const result = await dialog.showOpenDialog(mainWindow, {

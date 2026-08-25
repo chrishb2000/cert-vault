@@ -5,23 +5,27 @@ export default function ExportCert({ certs }) {
   const [password, setPassword] = useState('');
   const [usePassword, setUsePassword] = useState(false);
   const [exportFormat, setExportFormat] = useState('pfx');
+  const [destFolder, setDestFolder] = useState('');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
 
+  const handlePickFolder = async () => {
+    const folder = await window.certAPI.openFolderDialog();
+    if (folder) {
+      setDestFolder(folder);
+      setResult(null);
+    }
+  };
+
   const handleExport = async () => {
-    if (!selectedCert) return;
+    if (!selectedCert || !destFolder) return;
     setLoading(true);
     setResult(null);
 
     try {
       const ext = exportFormat === 'pfx' ? '.pfx' : '.cer';
-      const defaultName = selectedCert.file_name.replace(/\.[^.]+$/, '') + ext;
-      const destPath = await window.certAPI.openExportDialog(defaultName);
-
-      if (!destPath) {
-        setLoading(false);
-        return;
-      }
+      const baseName = (selectedCert.file_name || selectedCert.subject || 'certificado').replace(/\.[^.]+$/, '');
+      const destPath = destFolder + '\\' + baseName + ext;
 
       const pw = usePassword ? password : '';
       const res = await window.certAPI.exportCert(selectedCert.id, destPath, pw);
@@ -170,17 +174,47 @@ export default function ExportCert({ certs }) {
           )}
 
           <div className="step-header" style={{ marginTop: '24px' }}>
-            <div className={exportFormat === 'pfx' ? 'step-number' : 'step-number'}>{exportFormat === 'pfx' ? '4' : '3'}</div>
+            <div className="step-number">{exportFormat === 'pfx' ? '4' : '3'}</div>
             <div>
-              <h3>Exportar</h3>
-              <p>Guarda el certificado en la ubicacion que elijas</p>
+              <h3>Seleccionar Carpeta de Destino</h3>
+              <p>Elige donde guardar el certificado exportado</p>
             </div>
           </div>
+
+          <div className="folder-scan-input">
+            <input
+              type="text"
+              placeholder="Haz clic en Examinar para elegir carpeta..."
+              value={destFolder}
+              readOnly
+            />
+            <button className="scan-folder-btn secondary-btn" onClick={handlePickFolder}>
+              Examinar
+            </button>
+          </div>
+
+          {destFolder && (
+            <div className="cert-preview" style={{ marginTop: '12px' }}>
+              <div className="preview-row">
+                <span className="preview-label">Archivo:</span>
+                <span className="preview-value">
+                  {(selectedCert?.file_name || 'certificado').replace(/\.[^.]+$/, '')}.{exportFormat}
+                </span>
+              </div>
+              <div className="preview-row">
+                <span className="preview-label">Ruta:</span>
+                <span className="preview-value" style={{ wordBreak: 'break-all' }}>
+                  {destFolder}\\{(selectedCert?.file_name || 'certificado').replace(/\.[^.]+$/, '')}.{exportFormat}
+                </span>
+              </div>
+            </div>
+          )}
 
           <button
             className="primary-btn export-btn"
             onClick={handleExport}
-            disabled={!selectedCert || loading}
+            disabled={!selectedCert || !destFolder || loading}
+            style={{ marginTop: '20px' }}
           >
             {loading ? (
               <>

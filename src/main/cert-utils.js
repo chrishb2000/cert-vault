@@ -181,18 +181,23 @@ function scanFolderForCerts(folderPath, maxDepth) {
       } else if (entry.isFile()) {
         const ext = path.extname(entry.name).toLowerCase();
         if (certExts.includes(ext)) {
-          try {
-            const parsed = parseCertFile(fullPath, '');
-            if (parsed.subject || parsed.thumbprint) {
-              found.push({
-                ...parsed,
-                file_path: fullPath,
-                file_name: entry.name,
-                source: `Archivo: ${path.dirname(fullPath)}`
-              });
-            }
-          } catch (e) {
-            // Skip unparseable files
+          const parsed = parseCertFile(fullPath, '');
+          if (parsed.subject || parsed.thumbprint) {
+            found.push({
+              ...parsed,
+              file_path: fullPath,
+              file_name: entry.name,
+              source: `Archivo: ${path.dirname(fullPath)}`
+            });
+          } else if (ext === '.pfx' || ext === '.p12') {
+            found.push({
+              ...parsed,
+              subject: entry.name,
+              file_path: fullPath,
+              file_name: entry.name,
+              source: `Archivo: ${path.dirname(fullPath)}`,
+              note: 'Protegido con contrasena - se importara al instalar'
+            });
           }
         }
       }

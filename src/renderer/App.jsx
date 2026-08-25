@@ -5,7 +5,6 @@ import AutoDetect from './components/AutoDetect';
 import ImportCert from './components/ImportCert';
 import ExportCert from './components/ExportCert';
 import CertDetail from './components/CertDetail';
-import InstallCert from './components/InstallCert';
 
 export default function App() {
   const [theme, setTheme] = useState('dark');
@@ -44,8 +43,6 @@ export default function App() {
         return <ImportCert onImported={loadCerts} onNavigate={navigateTo} />;
       case 'export':
         return <ExportCert certs={certs} />;
-      case 'install':
-        return <InstallCert certs={certs} />;
       case 'detail':
         return <CertDetail cert={selectedCert} onBack={() => navigateTo('dashboard')} onRefresh={loadCerts} />;
       default:
